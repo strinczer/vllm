@@ -758,3 +758,61 @@ async def test_output_messages_enabled(client: OpenAI, model_name: str, server):
     assert response.status == "completed"
     assert len(response.input_messages) > 0
     assert len(response.output_messages) > 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model_name", [MODEL_NAME])
+async def test_stateless_function_calling(client: OpenAI, model_name: str):
+    """Test stateless function calling with function_call and function_call_output in same request.
+    
+    This tests the fix for TypedDict precedence in Union causing deserialization issues.
+    Previously, this would fail with "No call message found for {call_id}" error.
+    """
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get current weather for a location",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string"}
+                    },
+                    "required": ["location"]
+                },
+                "strict": True
+            }
+        }
+    ]
+    
+    # Stateless request with both function_call and function_call_output
+    input_messages = [
+        {"type": "message", "role": "user", "content": [
+            {"type": "input_text", "text": "What is the weather in London?"}
+        ]},
+        {
+            "type": "function_call",
+            "call_id": "call_test123",
+            "name": "get_weather",
+            "arguments": '{"location":"London"}',
+            "id": "fc_test123"
+        },
+        {
+            "type": "function_call_output",
+            "call_id": "call_test123",
+            "output": "Temperature: 15°C, Partly cloudy with light winds from the west"
+        }
+    ]
+    
+    response = await client.responses.create(
+        model=model_name,
+        input=input_messages,
+        tools=tools,
+    )
+    
+    assert response is not None
+    assert response.status == "completed"
+    assert response.output_text is not None
+    # The response should mention the weather information provided
+    assert "15" in response.output_text or "cloudy" in response.output_text.lower()

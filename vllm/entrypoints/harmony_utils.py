@@ -204,16 +204,22 @@ def parse_response_input(
         call_id = response_msg["call_id"]
         call_response: ResponseFunctionToolCall | None = None
         for prev_response in reversed(prev_responses):
-            if (
-                isinstance(prev_response, ResponseFunctionToolCall)
-                and prev_response.call_id == call_id
-            ):
-                call_response = prev_response
-                break
+            # Handle both Pydantic model instances and dicts due to Union resolution
+            is_function_call = isinstance(prev_response, ResponseFunctionToolCall) or \
+                              (isinstance(prev_response, dict) and prev_response.get("type") == "function_call")
+            
+            if is_function_call:
+                # Get call_id from either Pydantic object or dict
+                prev_call_id = prev_response.call_id if hasattr(prev_response, 'call_id') else prev_response.get('call_id')
+                if prev_call_id == call_id:
+                    call_response = prev_response
+                    break
         if call_response is None:
             raise ValueError(f"No call message found for {call_id}")
+        # Get function name from either Pydantic object or dict
+        function_name = call_response.name if hasattr(call_response, 'name') else call_response.get('name')
         msg = Message.from_author_and_content(
-            Author.new(Role.TOOL, f"functions.{call_response.name}"),
+            Author.new(Role.TOOL, f"functions.{function_name}"),
             response_msg["output"],
         )
     elif response_msg["type"] == "reasoning":
