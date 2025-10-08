@@ -763,8 +763,8 @@ async def test_output_messages_enabled(client: OpenAI, model_name: str, server):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("model_name", [MODEL_NAME])
 async def test_stateless_function_calling(client: OpenAI, model_name: str):
-    """Test stateless function calling with function_call and function_call_output in same request.
-    
+    """Test stateless function calling with function_call and function_call_output.
+
     This tests the fix for TypedDict precedence in Union causing deserialization issues.
     Previously, this would fail with "No call message found for {call_id}" error.
     """
@@ -776,41 +776,43 @@ async def test_stateless_function_calling(client: OpenAI, model_name: str):
                 "description": "Get current weather for a location",
                 "parameters": {
                     "type": "object",
-                    "properties": {
-                        "location": {"type": "string"}
-                    },
-                    "required": ["location"]
+                    "properties": {"location": {"type": "string"}},
+                    "required": ["location"],
                 },
-                "strict": True
-            }
+                "strict": True,
+            },
         }
     ]
-    
+
     # Stateless request with both function_call and function_call_output
     input_messages = [
-        {"type": "message", "role": "user", "content": [
-            {"type": "input_text", "text": "What is the weather in London?"}
-        ]},
+        {
+            "type": "message",
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": "What is the weather in London?"}
+            ],
+        },
         {
             "type": "function_call",
             "call_id": "call_test123",
             "name": "get_weather",
             "arguments": '{"location":"London"}',
-            "id": "fc_test123"
+            "id": "fc_test123",
         },
         {
             "type": "function_call_output",
             "call_id": "call_test123",
-            "output": "Temperature: 15°C, Partly cloudy with light winds from the west"
-        }
+            "output": "Temperature: 15°C, Partly cloudy with light winds from the west",
+        },
     ]
-    
+
     response = await client.responses.create(
         model=model_name,
         input=input_messages,
         tools=tools,
     )
-    
+
     assert response is not None
     assert response.status == "completed"
     assert response.output_text is not None

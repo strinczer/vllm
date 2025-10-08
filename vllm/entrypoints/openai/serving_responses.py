@@ -942,8 +942,10 @@ class OpenAIServingResponses(OpenAIServing):
                 # parse_response_input can find the tool call request when
                 # parsing the tool call output.
                 # Handle both Pydantic model instances and dicts due to Union resolution
-                if isinstance(response_msg, ResponseFunctionToolCall) or \
-                   (isinstance(response_msg, dict) and response_msg.get("type") == "function_call"):
+                if isinstance(response_msg, ResponseFunctionToolCall) or (
+                    isinstance(response_msg, dict)
+                    and response_msg.get("type") == "function_call"
+                ):
                     prev_outputs.append(response_msg)
         return messages
 
